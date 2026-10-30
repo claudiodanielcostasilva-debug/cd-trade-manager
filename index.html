@@ -1,0 +1,1363 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CD Trade Manager</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --bg-card: #111111;
+      --bg-input: #1a1a1a;
+      --border: #1f1f1f;
+      --green: #00ff88;
+      --green-dim: #00cc6a;
+      --green-dark: #003322;
+      --red: #ff4444;
+      --text: #e0e0e0;
+      --text-dim: #888888;
+      --yellow: #ffcc00;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      overflow-x: hidden;
+    }
+
+    /* AUTH */
+    .auth-screen {
+      position: fixed; inset: 0; background: var(--bg);
+      display: flex; align-items: center; justify-content: center; z-index: 1000;
+    }
+    .auth-screen.hidden { display: none !important; }
+    .auth-box {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 36px 32px; width: 100%; max-width: 400px;
+      box-shadow: 0 0 40px rgba(0,255,136,0.06);
+    }
+    .auth-logo { text-align: center; margin-bottom: 28px; }
+    .auth-logo .icon {
+      width: 52px; height: 52px;
+      background: linear-gradient(135deg, var(--green), var(--green-dim));
+      border-radius: 12px; display: inline-flex; align-items: center; justify-content: center;
+      font-weight: 800; color: #000; font-size: 20px; margin-bottom: 12px;
+    }
+    .auth-logo h1 { font-size: 20px; color: var(--green); font-weight: 700; }
+    .auth-logo p { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+    .auth-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+    .auth-tab {
+      flex: 1; padding: 10px; text-align: center; border-radius: 8px; cursor: pointer;
+      font-size: 13px; font-weight: 600; color: var(--text-dim);
+      border: 1px solid var(--border); transition: all 0.2s; user-select: none;
+    }
+    .auth-tab.active {
+      background: var(--green-dark); color: var(--green);
+      border-color: rgba(0,255,136,0.3);
+    }
+    .auth-form { display: none; }
+    .auth-form.active { display: block; }
+    .auth-form .form-group { margin-bottom: 14px; }
+    .auth-form label {
+      display: block; font-size: 11px; color: var(--text-dim);
+      text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;
+    }
+    .auth-form input {
+      width: 100%; background: var(--bg-input); border: 1px solid var(--border);
+      border-radius: 8px; padding: 11px 14px; color: var(--text); font-size: 14px; outline: none;
+    }
+    .auth-form input:focus { border-color: var(--green); }
+    .auth-error {
+      background: rgba(255,68,68,0.1); border: 1px solid var(--red); color: var(--red);
+      padding: 10px 14px; border-radius: 8px; font-size: 12px; margin-bottom: 14px; display: none;
+    }
+    .auth-error.show { display: block; }
+    .auth-btn {
+      width: 100%; padding: 12px; background: var(--green); color: #000;
+      border: none; border-radius: 8px; font-size: 14px; font-weight: 700;
+      cursor: pointer; margin-top: 8px; transition: background 0.2s;
+    }
+    .auth-btn:hover { background: var(--green-dim); }
+    .auth-hint { text-align: center; font-size: 11px; color: var(--text-dim); margin-top: 16px; }
+
+    /* APP */
+    .app-wrapper { display: none; width: 100%; }
+    .app-wrapper.show { display: flex; }
+
+    .sidebar {
+      width: 240px; background: #0d0d0d; border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 100;
+    }
+    .logo {
+      padding: 24px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px;
+    }
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--green), var(--green-dim));
+      border-radius: 8px; display: flex; align-items: center; justify-content: center;
+      font-weight: 800; color: #000; font-size: 16px;
+    }
+    .logo-text { font-size: 15px; font-weight: 700; color: var(--green); letter-spacing: 0.5px; }
+    .logo-sub { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+    .nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+    .nav-item {
+      display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 8px;
+      cursor: pointer; color: var(--text-dim); font-size: 13px; font-weight: 500;
+      transition: all 0.2s; border: 1px solid transparent;
+    }
+    .nav-item:hover { background: var(--bg-input); color: var(--text); }
+    .nav-item.active {
+      background: var(--green-dark); color: var(--green);
+      border-color: rgba(0,255,136,0.2);
+    }
+    .nav-item span.icon { font-size: 16px; width: 22px; text-align: center; }
+    .user-info { padding: 14px 16px; border-top: 1px solid var(--border); font-size: 12px; }
+    .user-info .name {
+      color: var(--green); font-weight: 600; margin-bottom: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .user-info .actions { display: flex; gap: 8px; margin-top: 8px; }
+    .user-info .actions button {
+      flex: 1; padding: 6px; font-size: 11px; border-radius: 6px; cursor: pointer;
+      border: 1px solid var(--border); background: transparent; color: var(--text-dim);
+    }
+    .user-info .actions button:hover { border-color: var(--green); color: var(--green); }
+
+    .main { margin-left: 240px; flex: 1; min-height: 100vh; padding: 28px 32px; }
+    .page { display: none; }
+    .page.active { display: block; animation: fadeIn 0.25s ease; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .page-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 28px; flex-wrap: wrap; gap: 12px;
+    }
+    .page-title { font-size: 22px; font-weight: 700; color: var(--green); }
+    .page-subtitle { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+
+    .cards-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px; margin-bottom: 28px;
+    }
+    .card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 18px 20px;
+    }
+    .card-label {
+      font-size: 11px; color: var(--text-dim); text-transform: uppercase;
+      letter-spacing: 0.8px; margin-bottom: 8px;
+    }
+    .card-value { font-size: 22px; font-weight: 700; color: var(--text); }
+    .card-value.green { color: var(--green); }
+    .card-value.red { color: var(--red); }
+    .card-value.yellow { color: var(--yellow); }
+    .card-change { font-size: 11px; margin-top: 6px; color: var(--text-dim); }
+
+    .section {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 22px; margin-bottom: 24px;
+    }
+    .section-title {
+      font-size: 14px; font-weight: 600; color: var(--green);
+      margin-bottom: 18px; display: flex; align-items: center; gap: 8px;
+    }
+    .form-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;
+    }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label {
+      font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .form-group input, .form-group select {
+      background: var(--bg-input); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 14px; color: var(--text); font-size: 14px; outline: none;
+    }
+    .form-group input:focus, .form-group select:focus { border-color: var(--green); }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px;
+      border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none;
+    }
+    .btn-primary { background: var(--green); color: #000; }
+    .btn-primary:hover { background: var(--green-dim); }
+    .btn-secondary {
+      background: transparent; border: 1px solid var(--border); color: var(--text-dim);
+    }
+    .btn-secondary:hover { border-color: var(--green); color: var(--green); }
+    .btn-danger {
+      background: transparent; border: 1px solid var(--red); color: var(--red);
+    }
+
+    .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead { background: #0d0d0d; }
+    th {
+      padding: 12px 14px; text-align: left; font-size: 11px; color: var(--green);
+      text-transform: uppercase; letter-spacing: 0.6px; border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    td {
+      padding: 12px 14px; border-bottom: 1px solid var(--border);
+      color: var(--text); white-space: nowrap;
+    }
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: rgba(0,255,136,0.03); }
+    .pos { color: var(--green); font-weight: 600; }
+    .neg { color: var(--red); font-weight: 600; }
+    .status-badge {
+      display: inline-block; padding: 3px 10px; border-radius: 20px;
+      font-size: 11px; font-weight: 600;
+    }
+    .status-bom { background: rgba(0,255,136,0.15); color: var(--green); }
+    .status-medio { background: rgba(255,204,0,0.15); color: var(--yellow); }
+    .status-ruim { background: rgba(255,68,68,0.15); color: var(--red); }
+    .status-none { background: rgba(136,136,136,0.15); color: var(--text-dim); }
+
+    .charts-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px;
+    }
+    .chart-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px;
+    }
+    .chart-card h3 { font-size: 13px; color: var(--green); margin-bottom: 16px; font-weight: 600; }
+    .chart-container { position: relative; height: 260px; }
+
+    .progress-bar {
+      height: 8px; background: var(--bg-input); border-radius: 4px; overflow: hidden; margin-top: 8px;
+    }
+    .progress-fill {
+      height: 100%; background: linear-gradient(90deg, var(--green-dim), var(--green));
+      border-radius: 4px; transition: width 0.4s ease;
+    }
+    .empty-state { text-align: center; padding: 48px 20px; color: var(--text-dim); }
+    .empty-state .icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      display: none; align-items: center; justify-content: center; z-index: 200;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 28px; width: 90%; max-width: 480px;
+    }
+    .modal h2 { color: var(--green); font-size: 16px; margin-bottom: 20px; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
+
+    .toast {
+      position: fixed; bottom: 24px; right: 24px; background: var(--bg-card);
+      border: 1px solid var(--green); color: var(--green); padding: 12px 20px;
+      border-radius: 8px; font-size: 13px; font-weight: 500;
+      opacity: 0; transform: translateY(10px); transition: all 0.3s; z-index: 300;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    /* Gerenciamento cards */
+    .mgmt-options {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px;
+    }
+    .mgmt-card {
+      background: var(--bg-input); border: 2px solid var(--border);
+      border-radius: 12px; padding: 18px; cursor: pointer; transition: all 0.2s;
+    }
+    .mgmt-card:hover { border-color: rgba(0,255,136,0.4); }
+    .mgmt-card.selected {
+      border-color: var(--green); background: var(--green-dark);
+    }
+    .mgmt-card h4 { color: var(--green); font-size: 14px; margin-bottom: 8px; }
+    .mgmt-card p { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+    .mgmt-card .risk { margin-top: 10px; font-size: 13px; font-weight: 700; color: var(--yellow); }
+
+    @media (max-width: 900px) {
+      .sidebar { width: 64px; }
+      .logo-text, .logo-sub, .nav-item span:not(.icon), .user-info .name { display: none; }
+      .main { margin-left: 64px; padding: 20px 16px; }
+      .nav-item { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- AUTH SCREEN -->
+  <div class="auth-screen" id="authScreen">
+    <div class="auth-box">
+      <div class="auth-logo">
+        <div class="icon">CD</div>
+        <h1>CD TRADE</h1>
+        <p>Gerenciador de Trading Profissional</p>
+      </div>
+
+      <div class="auth-tabs">
+        <div class="auth-tab active" id="tabLogin">Entrar</div>
+        <div class="auth-tab" id="tabRegister">Criar Conta</div>
+      </div>
+
+      <div class="auth-error" id="authError"></div>
+
+      <div class="auth-form active" id="formLogin">
+        <div class="form-group">
+          <label>E-mail ou Telefone</label>
+          <input type="text" id="loginUser" placeholder="email@gmail.com ou 11999999999" autocomplete="username" />
+        </div>
+        <div class="form-group">
+          <label>Senha</label>
+          <input type="password" id="loginPass" placeholder="Sua senha" autocomplete="current-password" />
+        </div>
+        <button class="auth-btn" id="btnLogin" type="button">Entrar</button>
+      </div>
+
+      <div class="auth-form" id="formRegister">
+        <div class="form-group">
+          <label>Nome</label>
+          <input type="text" id="regNome" placeholder="Seu nome" />
+        </div>
+        <div class="form-group">
+          <label>E-mail ou Telefone</label>
+          <input type="text" id="regUser" placeholder="email@gmail.com ou 11999999999" />
+        </div>
+        <div class="form-group">
+          <label>Senha</label>
+          <input type="password" id="regPass" placeholder="Mínimo 4 caracteres" />
+        </div>
+        <div class="form-group">
+          <label>Confirmar Senha</label>
+          <input type="password" id="regPass2" placeholder="Repita a senha" />
+        </div>
+        <button class="auth-btn" id="btnRegister" type="button">Criar Conta</button>
+      </div>
+
+      <div class="auth-hint">
+        Os dados ficam salvos neste navegador.<br>
+        Cada conta tem seus próprios trades e parâmetros.
+      </div>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div class="app-wrapper" id="appWrapper">
+    <aside class="sidebar">
+      <div class="logo">
+        <div class="logo-icon">CD</div>
+        <div>
+          <div class="logo-text">CD TRADE</div>
+          <div class="logo-sub">MANAGER PRO</div>
+        </div>
+      </div>
+      <nav class="nav">
+        <div class="nav-item active" data-page="dashboard"><span class="icon">▣</span><span>Dashboard</span></div>
+        <div class="nav-item" data-page="parametros"><span class="icon">⚙</span><span>Parâmetros</span></div>
+        <div class="nav-item" data-page="trades"><span class="icon">☰</span><span>Trades Diários</span></div>
+        <div class="nav-item" data-page="mensal"><span class="icon">📅</span><span>Resultados Mensais</span></div>
+        <div class="nav-item" data-page="anual"><span class="icon">📆</span><span>Resultados Anuais</span></div>
+        <div class="nav-item" data-page="graficos"><span class="icon">📈</span><span>Gráficos</span></div>
+        <div class="nav-item" data-page="conta"><span class="icon">👤</span><span>Minha Conta</span></div>
+      </nav>
+      <div class="user-info">
+        <div class="name" id="userDisplayName">Usuário</div>
+        <div class="actions">
+          <button type="button" id="btnLogout">Sair</button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <!-- DASHBOARD -->
+      <div class="page active" id="page-dashboard">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Dashboard</div>
+            <div class="page-subtitle">Visão geral do seu desempenho</div>
+          </div>
+        </div>
+        <div class="cards-grid" id="dash-cards"></div>
+        <div class="section">
+          <div class="section-title">▶ Progresso até a Meta</div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">
+            <span id="progress-label">0%</span>
+            <span id="progress-target" style="color:var(--text-dim)">Meta: R$ 0</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+        </div>
+        <div class="charts-grid">
+          <div class="chart-card">
+            <h3>Evolução do Capital</h3>
+            <div class="chart-container"><canvas id="dashChartEvolucao"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <h3>Acertividade (Dias)</h3>
+            <div class="chart-container"><canvas id="dashChartAcerto"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PARÂMETROS -->
+      <div class="page" id="page-parametros">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Parâmetros de Capital</div>
+            <div class="page-subtitle">Configure suas regras de risco, metas e gerenciamento</div>
+          </div>
+          <button class="btn btn-primary" type="button" id="btnSalvarParams">Salvar Parâmetros</button>
+        </div>
+
+        <div class="section">
+          <div class="section-title">▶ Parâmetros de Entrada</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Capital Inicial (R$)</label>
+              <input type="number" id="capInicial" value="10000" step="0.01" />
+            </div>
+            <div class="form-group">
+              <label>Meta de Lucro Total (%)</label>
+              <input type="number" id="metaLucro" value="20" step="0.1" />
+            </div>
+            <div class="form-group">
+              <label>Meta de Lucro Diário (%)</label>
+              <input type="number" id="metaDiaria" value="1" step="0.1" />
+            </div>
+            <div class="form-group">
+              <label>Max Stop Loss Diário (%)</label>
+              <input type="number" id="stopDiario" value="2" step="0.1" />
+            </div>
+            <div class="form-group">
+              <label>Max Stop Total (%)</label>
+              <input type="number" id="stopTotal" value="10" step="0.1" />
+            </div>
+          </div>
+        </div>
+
+        <!-- GERENCIAMENTO -->
+        <div class="section">
+          <div class="section-title">▶ Tipo de Gerenciamento</div>
+          <div class="mgmt-options" id="mgmtOptions">
+            <div class="mgmt-card" data-mgmt="seguro">
+              <h4>🛡 Seguro</h4>
+              <p>Risco baixo e controle rígido. Ideal para quem está começando ou quer preservar capital.</p>
+              <div class="risk">Risco por trade: 0,5% do capital</div>
+            </div>
+            <div class="mgmt-card" data-mgmt="moderado">
+              <h4>⚖ Moderado</h4>
+              <p>Equilíbrio entre crescimento e proteção. O mais usado pela maioria dos traders.</p>
+              <div class="risk">Risco por trade: 1% a 3% do capital</div>
+            </div>
+            <div class="mgmt-card" data-mgmt="agressivo">
+              <h4>🔥 Agressivo</h4>
+              <p>Maior exposição em busca de resultados mais rápidos. Exige disciplina e experiência.</p>
+              <div class="risk">Risco por trade: 5% ou mais do capital</div>
+            </div>
+            <div class="mgmt-card" data-mgmt="compostos">
+              <h4>📈 Juros Compostos</h4>
+              <p>Alavanca o capital de forma progressiva e segura, com proteção contra quebra.</p>
+              <div class="risk">Risco controlado + proteção de capital</div>
+            </div>
+            <div class="mgmt-card" data-mgmt="personalizado">
+              <h4>⚙ Personalizado</h4>
+              <p>Você define exatamente quanto quer arriscar por trade e as regras de operação.</p>
+              <div class="risk">Risco definido por você</div>
+            </div>
+          </div>
+
+          <!-- Detalhes do gerenciamento selecionado -->
+          <div id="mgmtDetails" style="margin-top:20px; display:none;">
+            <div class="form-grid" id="mgmtDetailsGrid"></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">▶ Metas Calculadas</div>
+          <div class="cards-grid" id="metas-cards"></div>
+        </div>
+        <div class="section">
+          <div class="section-title">▶ Status Atual do Capital</div>
+          <div class="cards-grid" id="status-cards"></div>
+        </div>
+      </div>
+
+      <!-- TRADES -->
+      <div class="page" id="page-trades">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Trades Diários</div>
+            <div class="page-subtitle">Registre seus resultados diários</div>
+          </div>
+          <button class="btn btn-primary" type="button" id="btnNovoTrade">+ Novo Trade</button>
+        </div>
+        <div class="cards-grid" id="trades-resumo"></div>
+        <div class="section">
+          <div class="section-title">▶ Histórico de Trades</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data</th><th>Qtd Trades</th><th>Ganhos</th><th>Perdas</th>
+                  <th>Resultado</th><th>Saldo Final</th><th>% Capital</th><th>Status</th><th></th>
+                </tr>
+              </thead>
+              <tbody id="trades-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- MENSAIS -->
+      <div class="page" id="page-mensal">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Resultados Mensais</div>
+            <div class="page-subtitle">Consolidado automático por mês</div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">▶ Consolidado do Ano</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Mês</th><th>Qtd Trades</th><th>Ganhos</th><th>Perdas</th>
+                  <th>Resultado</th><th>Pior Dia</th><th>Risco Médio</th><th>Saldo Final</th><th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="mensal-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ANUAIS -->
+      <div class="page" id="page-anual">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Resultados Anuais</div>
+            <div class="page-subtitle">Consolidado por ano completo</div>
+          </div>
+        </div>
+        <div class="cards-grid" id="anual-resumo"></div>
+        <div class="section">
+          <div class="section-title">▶ Tabela Anual</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Ano</th><th>Qtd Trades</th><th>Dias Operados</th><th>Ganhos</th><th>Perdas</th>
+                  <th>Resultado Anual</th><th>Win Rate</th><th>Melhor Mês</th><th>Pior Mês</th>
+                  <th>Saldo Final</th><th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="anual-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- GRÁFICOS -->
+      <div class="page" id="page-graficos">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Gráficos</div>
+            <div class="page-subtitle">Análise visual do desempenho</div>
+          </div>
+        </div>
+        <div class="charts-grid">
+          <div class="chart-card">
+            <h3>Acertividade — Dias de Lucro vs Prejuízo</h3>
+            <div class="chart-container"><canvas id="chartAcerto"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <h3>Ganhos vs Perdas (R$)</h3>
+            <div class="chart-container"><canvas id="chartGanhosPerdas"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <h3>Lucratividade Mensal</h3>
+            <div class="chart-container"><canvas id="chartMensal"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <h3>Evolução do Capital</h3>
+            <div class="chart-container"><canvas id="chartEvolucao"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONTA -->
+      <div class="page" id="page-conta">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Minha Conta</div>
+            <div class="page-subtitle">Gerencie seus dados de acesso</div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">▶ Dados da Conta</div>
+          <div class="cards-grid" id="conta-info"></div>
+        </div>
+        <div class="section">
+          <div class="section-title">▶ Alterar Senha</div>
+          <div class="form-grid" style="max-width:500px;">
+            <div class="form-group">
+              <label>Senha Atual</label>
+              <input type="password" id="senhaAtual" placeholder="Digite a senha atual" />
+            </div>
+            <div class="form-group">
+              <label>Nova Senha</label>
+              <input type="password" id="senhaNova" placeholder="Mínimo 4 caracteres" />
+            </div>
+            <div class="form-group">
+              <label>Confirmar Nova Senha</label>
+              <input type="password" id="senhaNova2" placeholder="Repita a nova senha" />
+            </div>
+          </div>
+          <div style="margin-top:16px;">
+            <button class="btn btn-primary" type="button" id="btnAlterarSenha">Alterar Senha</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal Trade -->
+  <div class="modal-overlay" id="modalTrade">
+    <div class="modal">
+      <h2>Registrar Trade do Dia</h2>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+        <div class="form-group">
+          <label>Data</label>
+          <input type="date" id="tradeData" />
+        </div>
+        <div class="form-group">
+          <label>Qtd de Trades</label>
+          <input type="number" id="tradeQtd" value="1" min="1" />
+        </div>
+        <div class="form-group">
+          <label>Ganhos (R$)</label>
+          <input type="number" id="tradeGanhos" value="0" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label>Perdas (R$)</label>
+          <input type="number" id="tradePerdas" value="0" step="0.01" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" type="button" id="btnCancelTrade">Cancelar</button>
+        <button class="btn btn-primary" type="button" id="btnSaveTrade">Salvar Trade</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+  (function() {
+    'use strict';
+
+    // ========== STATE ==========
+    let currentUser = null;
+    let params = {
+      capitalInicial: 10000,
+      metaLucro: 20,
+      metaDiaria: 1,
+      stopDiario: 2,
+      stopTotal: 10,
+      gerenciamento: 'moderado',
+      riscoPersonalizado: 2,
+      riscoCompostos: 1.5,
+      protecaoCompostos: 15
+    };
+    let trades = [];
+    let charts = {};
+
+    const sampleTrades = [
+      { data: '2025-01-02', qtd: 5, ganhos: 350, perdas: 120 },
+      { data: '2025-01-03', qtd: 4, ganhos: 280, perdas: 200 },
+      { data: '2025-01-06', qtd: 6, ganhos: 420, perdas: 90 },
+      { data: '2025-01-07', qtd: 3, ganhos: 150, perdas: 180 },
+      { data: '2025-01-08', qtd: 5, ganhos: 310, perdas: 100 },
+      { data: '2025-01-09', qtd: 4, ganhos: 200, perdas: 250 },
+      { data: '2025-01-10', qtd: 7, ganhos: 480, perdas: 150 },
+      { data: '2025-01-13', qtd: 5, ganhos: 390, perdas: 80 },
+      { data: '2025-01-14', qtd: 4, ganhos: 220, perdas: 190 },
+      { data: '2025-01-15', qtd: 6, ganhos: 510, perdas: 130 },
+      { data: '2025-02-03', qtd: 5, ganhos: 340, perdas: 110 },
+      { data: '2025-02-04', qtd: 4, ganhos: 270, perdas: 160 },
+      { data: '2025-02-05', qtd: 6, ganhos: 400, perdas: 200 },
+      { data: '2025-02-06', qtd: 3, ganhos: 180, perdas: 90 },
+      { data: '2025-02-07', qtd: 5, ganhos: 320, perdas: 140 }
+    ];
+
+    // ========== STORAGE ==========
+    function getUsers() {
+      try { return JSON.parse(localStorage.getItem('cdtrade_users') || '{}'); }
+      catch(e) { return {}; }
+    }
+    function saveUsers(users) {
+      try { localStorage.setItem('cdtrade_users', JSON.stringify(users)); }
+      catch(e) { console.error('Erro ao salvar usuários', e); }
+    }
+    function getUserKey(login) {
+      return 'cdtrade_data_' + String(login).toLowerCase().trim();
+    }
+    function loadUserData() {
+      if (!currentUser) return;
+      try {
+        const raw = localStorage.getItem(getUserKey(currentUser.login));
+        if (raw) {
+          const data = JSON.parse(raw);
+          params = Object.assign({}, params, data.params || {});
+          trades = data.trades || [];
+        } else {
+          params = {
+            capitalInicial: 10000, metaLucro: 20, metaDiaria: 1,
+            stopDiario: 2, stopTotal: 10, gerenciamento: 'moderado',
+            riscoPersonalizado: 2, riscoCompostos: 1.5, protecaoCompostos: 15
+          };
+          trades = sampleTrades.slice();
+          saveUserData();
+        }
+      } catch(e) {
+        console.error('Erro ao carregar dados', e);
+        trades = sampleTrades.slice();
+      }
+    }
+    function saveUserData() {
+      if (!currentUser) return;
+      try {
+        localStorage.setItem(getUserKey(currentUser.login), JSON.stringify({ params: params, trades: trades }));
+      } catch(e) { console.error('Erro ao salvar dados', e); }
+    }
+
+    // ========== AUTH ==========
+    function showAuthError(msg) {
+      var el = document.getElementById('authError');
+      el.textContent = msg;
+      el.classList.add('show');
+    }
+    function hideAuthError() {
+      document.getElementById('authError').classList.remove('show');
+    }
+
+    function switchAuthTab(tab) {
+      hideAuthError();
+      document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
+      document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+      document.getElementById('formLogin').classList.toggle('active', tab === 'login');
+      document.getElementById('formRegister').classList.toggle('active', tab === 'register');
+    }
+
+    function criarConta() {
+      try {
+        var nome = (document.getElementById('regNome').value || '').trim();
+        var login = (document.getElementById('regUser').value || '').trim();
+        var pass = document.getElementById('regPass').value || '';
+        var pass2 = document.getElementById('regPass2').value || '';
+
+        if (!nome || !login || !pass) return showAuthError('Preencha todos os campos.');
+        if (pass.length < 4) return showAuthError('A senha deve ter no mínimo 4 caracteres.');
+        if (pass !== pass2) return showAuthError('As senhas não coincidem.');
+
+        var users = getUsers();
+        var key = login.toLowerCase();
+        if (users[key]) return showAuthError('Já existe uma conta com este e-mail/telefone.');
+
+        users[key] = { nome: nome, login: key, senha: pass, criado: new Date().toISOString() };
+        saveUsers(users);
+
+        currentUser = users[key];
+        localStorage.setItem('cdtrade_session', key);
+        entrarNoApp();
+        showToast('Conta criada com sucesso!');
+      } catch(e) {
+        console.error(e);
+        showAuthError('Erro ao criar conta. Tente novamente.');
+      }
+    }
+
+    function fazerLogin() {
+      try {
+        var login = (document.getElementById('loginUser').value || '').trim().toLowerCase();
+        var pass = document.getElementById('loginPass').value || '';
+
+        if (!login || !pass) return showAuthError('Preencha e-mail/telefone e senha.');
+
+        var users = getUsers();
+        var user = users[login];
+        if (!user) return showAuthError('Conta não encontrada. Crie uma conta primeiro.');
+        if (user.senha !== pass) return showAuthError('Senha incorreta.');
+
+        currentUser = user;
+        localStorage.setItem('cdtrade_session', login);
+        entrarNoApp();
+        showToast('Bem-vindo, ' + user.nome + '!');
+      } catch(e) {
+        console.error(e);
+        showAuthError('Erro ao entrar. Tente novamente.');
+      }
+    }
+
+    function logout() {
+      currentUser = null;
+      localStorage.removeItem('cdtrade_session');
+      document.getElementById('appWrapper').classList.remove('show');
+      document.getElementById('authScreen').classList.remove('hidden');
+      document.getElementById('loginUser').value = '';
+      document.getElementById('loginPass').value = '';
+      hideAuthError();
+      switchAuthTab('login');
+    }
+
+    function entrarNoApp() {
+      document.getElementById('authScreen').classList.add('hidden');
+      document.getElementById('appWrapper').classList.add('show');
+      document.getElementById('userDisplayName').textContent = currentUser.nome || currentUser.login;
+      loadUserData();
+      renderAll();
+    }
+
+    function alterarSenha() {
+      var atual = document.getElementById('senhaAtual').value || '';
+      var nova = document.getElementById('senhaNova').value || '';
+      var nova2 = document.getElementById('senhaNova2').value || '';
+
+      if (!atual || !nova || !nova2) return showToast('Preencha todos os campos de senha.');
+      if (atual !== currentUser.senha) return showToast('Senha atual incorreta.');
+      if (nova.length < 4) return showToast('Nova senha deve ter no mínimo 4 caracteres.');
+      if (nova !== nova2) return showToast('As novas senhas não coincidem.');
+
+      var users = getUsers();
+      users[currentUser.login].senha = nova;
+      currentUser.senha = nova;
+      saveUsers(users);
+
+      document.getElementById('senhaAtual').value = '';
+      document.getElementById('senhaNova').value = '';
+      document.getElementById('senhaNova2').value = '';
+      showToast('Senha alterada com sucesso!');
+    }
+
+    // ========== CALCULATIONS ==========
+    function calcTrades() {
+      var saldo = Number(params.capitalInicial) || 10000;
+      return trades.slice().sort(function(a,b){ return a.data.localeCompare(b.data); }).map(function(t) {
+        var resultado = (Number(t.ganhos)||0) - (Number(t.perdas)||0);
+        var saldoAnterior = saldo;
+        saldo += resultado;
+        var pct = saldoAnterior !== 0 ? resultado / saldoAnterior : 0;
+        return {
+          data: t.data, qtd: t.qtd, ganhos: t.ganhos, perdas: t.perdas,
+          resultado: resultado, saldo: saldo, pct: pct,
+          status: resultado > 0 ? 'Lucro' : (resultado < 0 ? 'Prejuízo' : 'Zero')
+        };
+      });
+    }
+
+    function getStats() {
+      var calc = calcTrades();
+      var diasLucro = calc.filter(function(t){ return t.resultado > 0; }).length;
+      var diasPrejuizo = calc.filter(function(t){ return t.resultado < 0; }).length;
+      var diasZero = calc.filter(function(t){ return t.resultado === 0; }).length;
+      var totalGanhos = calc.reduce(function(s,t){ return s + (Number(t.ganhos)||0); }, 0);
+      var totalPerdas = calc.reduce(function(s,t){ return s + (Number(t.perdas)||0); }, 0);
+      var resultadoLiquido = totalGanhos - totalPerdas;
+      var capitalAtual = calc.length ? calc[calc.length-1].saldo : Number(params.capitalInicial);
+      var totalTrades = calc.reduce(function(s,t){ return s + (Number(t.qtd)||0); }, 0);
+      var winRate = calc.length ? diasLucro / calc.length : 0;
+      var melhorDia = calc.length ? Math.max.apply(null, calc.map(function(t){ return t.resultado; })) : 0;
+      var piorDia = calc.length ? Math.min.apply(null, calc.map(function(t){ return t.resultado; })) : 0;
+      var metaReais = Number(params.capitalInicial) * Number(params.metaLucro) / 100;
+      var progresso = metaReais !== 0 ? (capitalAtual - Number(params.capitalInicial)) / metaReais : 0;
+      var drawdown = Number(params.capitalInicial) !== 0
+        ? Math.min(0, (capitalAtual - Number(params.capitalInicial)) / Number(params.capitalInicial)) : 0;
+
+      return {
+        calc: calc, diasLucro: diasLucro, diasPrejuizo: diasPrejuizo, diasZero: diasZero,
+        totalGanhos: totalGanhos, totalPerdas: totalPerdas, resultadoLiquido: resultadoLiquido,
+        capitalAtual: capitalAtual, totalTrades: totalTrades, winRate: winRate,
+        melhorDia: melhorDia, piorDia: piorDia, metaReais: metaReais,
+        progresso: progresso, drawdown: drawdown, diasOperados: calc.length
+      };
+    }
+
+    function getMensal() {
+      var calc = calcTrades();
+      var meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+      var saldoAcum = Number(params.capitalInicial);
+      return meses.map(function(nome, i) {
+        var mesNum = i + 1;
+        var doMes = calc.filter(function(t) {
+          return new Date(t.data + 'T12:00:00').getMonth() + 1 === mesNum;
+        });
+        var qtd = doMes.reduce(function(s,t){ return s + (Number(t.qtd)||0); }, 0);
+        var ganhos = doMes.reduce(function(s,t){ return s + (Number(t.ganhos)||0); }, 0);
+        var perdas = doMes.reduce(function(s,t){ return s + (Number(t.perdas)||0); }, 0);
+        var resultado = ganhos - perdas;
+        var pior = doMes.length ? Math.min.apply(null, doMes.map(function(t){ return t.resultado; })) : 0;
+        var risco = doMes.length ? doMes.reduce(function(s,t){ return s + t.pct; }, 0) / doMes.length : 0;
+        saldoAcum += resultado;
+        var status = '—';
+        if (doMes.length > 0) {
+          if (resultado > 50) status = 'BOM';
+          else if (resultado >= -50) status = 'MÉDIO';
+          else status = 'RUIM';
+        }
+        return { nome: nome, qtd: qtd, ganhos: ganhos, perdas: perdas, resultado: resultado,
+                 pior: pior, risco: risco, saldo: saldoAcum, status: status, temDados: doMes.length > 0 };
+      });
+    }
+
+    function getAnual() {
+      var calc = calcTrades();
+      var anos = {};
+      calc.forEach(function(t) {
+        var ano = new Date(t.data + 'T12:00:00').getFullYear();
+        if (!anos[ano]) anos[ano] = [];
+        anos[ano].push(t);
+      });
+      var mensal = getMensal();
+      return Object.keys(anos).sort().map(function(ano) {
+        var lista = anos[ano];
+        var qtd = lista.reduce(function(s,t){ return s + (Number(t.qtd)||0); }, 0);
+        var ganhos = lista.reduce(function(s,t){ return s + (Number(t.ganhos)||0); }, 0);
+        var perdas = lista.reduce(function(s,t){ return s + (Number(t.perdas)||0); }, 0);
+        var resultado = ganhos - perdas;
+        var winRate = lista.filter(function(t){ return t.resultado > 0; }).length / lista.length;
+        var saldo = lista[lista.length - 1].saldo;
+        var mesesDoAno = mensal.filter(function(m){ return m.temDados; });
+        var melhorMes = mesesDoAno.length ? Math.max.apply(null, mesesDoAno.map(function(m){ return m.resultado; })) : 0;
+        var piorMes = mesesDoAno.length ? Math.min.apply(null, mesesDoAno.map(function(m){ return m.resultado; })) : 0;
+        var status = '—';
+        if (resultado > 200) status = 'BOM';
+        else if (resultado >= -200) status = 'MÉDIO';
+        else status = 'RUIM';
+        return { ano: ano, qtd: qtd, dias: lista.length, ganhos: ganhos, perdas: perdas,
+                 resultado: resultado, winRate: winRate, melhorMes: melhorMes, piorMes: piorMes,
+                 saldo: saldo, status: status };
+      });
+    }
+
+    function getRiscoAtual() {
+      var cap = Number(params.capitalInicial) || 10000;
+      var tipo = params.gerenciamento || 'moderado';
+      if (tipo === 'seguro') return { pct: 0.5, valor: cap * 0.005, label: '0,5%' };
+      if (tipo === 'moderado') return { pct: 2, valor: cap * 0.02, label: '1% a 3% (média 2%)' };
+      if (tipo === 'agressivo') return { pct: 5, valor: cap * 0.05, label: '5%+' };
+      if (tipo === 'compostos') {
+        var r = Number(params.riscoCompostos) || 1.5;
+        return { pct: r, valor: cap * r / 100, label: r + '%' };
+      }
+      if (tipo === 'personalizado') {
+        var rp = Number(params.riscoPersonalizado) || 2;
+        return { pct: rp, valor: cap * rp / 100, label: rp + '%' };
+      }
+      return { pct: 2, valor: cap * 0.02, label: '2%' };
+    }
+
+    // ========== FORMAT ==========
+    function fmt(v) {
+      return Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+    function fmtPct(v) { return (Number(v) * 100).toFixed(2) + '%'; }
+    function fmtDate(d) {
+      if (!d) return '';
+      var p = d.split('-');
+      return p[2] + '/' + p[1] + '/' + p[0];
+    }
+
+    // ========== RENDER ==========
+    function renderDashboard() {
+      var s = getStats();
+      document.getElementById('dash-cards').innerHTML =
+        '<div class="card"><div class="card-label">Capital Atual</div><div class="card-value green">' + fmt(s.capitalAtual) + '</div><div class="card-change">Inicial: ' + fmt(params.capitalInicial) + '</div></div>' +
+        '<div class="card"><div class="card-label">Resultado Acumulado</div><div class="card-value ' + (s.resultadoLiquido >= 0 ? 'green' : 'red') + '">' + fmt(s.resultadoLiquido) + '</div></div>' +
+        '<div class="card"><div class="card-label">Win Rate</div><div class="card-value ' + (s.winRate >= 0.5 ? 'green' : 'yellow') + '">' + fmtPct(s.winRate) + '</div><div class="card-change">' + s.diasLucro + ' dias lucro / ' + s.diasOperados + ' operados</div></div>' +
+        '<div class="card"><div class="card-label">Total de Trades</div><div class="card-value">' + s.totalTrades + '</div></div>' +
+        '<div class="card"><div class="card-label">Melhor Dia</div><div class="card-value green">' + fmt(s.melhorDia) + '</div></div>' +
+        '<div class="card"><div class="card-label">Pior Dia</div><div class="card-value red">' + fmt(s.piorDia) + '</div></div>';
+
+      var prog = Math.max(0, Math.min(100, s.progresso * 100));
+      document.getElementById('progress-label').textContent = prog.toFixed(1) + '% da meta';
+      document.getElementById('progress-target').textContent = 'Meta: ' + fmt(s.metaReais);
+      document.getElementById('progress-fill').style.width = prog + '%';
+
+      try {
+        renderChart('dashChartEvolucao', 'line', s.calc.map(function(t){ return fmtDate(t.data); }), [{
+          label: 'Saldo', data: s.calc.map(function(t){ return t.saldo; }),
+          borderColor: '#00ff88', backgroundColor: 'rgba(0,255,136,0.08)',
+          fill: true, tension: 0.3, pointRadius: 3
+        }]);
+        renderChart('dashChartAcerto', 'doughnut', ['Lucro', 'Prejuízo', 'Zero'], [{
+          data: [s.diasLucro, s.diasPrejuizo, s.diasZero],
+          backgroundColor: ['#00ff88', '#ff4444', '#555555'], borderWidth: 0
+        }], true);
+      } catch(e) { console.warn('Charts:', e); }
+    }
+
+    function renderParametros() {
+      document.getElementById('capInicial').value = params.capitalInicial;
+      document.getElementById('metaLucro').value = params.metaLucro;
+      document.getElementById('metaDiaria').value = params.metaDiaria;
+      document.getElementById('stopDiario').value = params.stopDiario;
+      document.getElementById('stopTotal').value = params.stopTotal;
+
+      // Selecionar card de gerenciamento
+      document.querySelectorAll('.mgmt-card').forEach(function(c) {
+        c.classList.toggle('selected', c.getAttribute('data-mgmt') === params.gerenciamento);
+      });
+      updateMgmtDetails();
+
+      var s = getStats();
+      var metaReais = Number(params.capitalInicial) * Number(params.metaLucro) / 100;
+      var metaDiaReais = Number(params.capitalInicial) * Number(params.metaDiaria) / 100;
+      var stopDiaReais = Number(params.capitalInicial) * Number(params.stopDiario) / 100;
+      var stopTotReais = Number(params.capitalInicial) * Number(params.stopTotal) / 100;
+      var risco = getRiscoAtual();
+
+      document.getElementById('metas-cards').innerHTML =
+        '<div class="card"><div class="card-label">Meta de Lucro Total</div><div class="card-value green">' + fmt(metaReais) + '</div></div>' +
+        '<div class="card"><div class="card-label">Capital Alvo</div><div class="card-value green">' + fmt(Number(params.capitalInicial) + metaReais) + '</div></div>' +
+        '<div class="card"><div class="card-label">Meta Diária</div><div class="card-value">' + fmt(metaDiaReais) + '</div></div>' +
+        '<div class="card"><div class="card-label">Stop Loss Diário Máx</div><div class="card-value red">' + fmt(stopDiaReais) + '</div></div>' +
+        '<div class="card"><div class="card-label">Stop Total Máximo</div><div class="card-value red">' + fmt(stopTotReais) + '</div></div>' +
+        '<div class="card"><div class="card-label">Risco por Trade (Gerenciamento)</div><div class="card-value yellow">' + fmt(risco.valor) + '</div><div class="card-change">' + risco.label + ' do capital</div></div>';
+
+      var distStop = s.capitalAtual >= Number(params.capitalInicial) ? 'Seguro' :
+        (Number(params.capitalInicial) - s.capitalAtual) >= stopTotReais ? 'STOP ATINGIDO' : 'Em risco';
+
+      document.getElementById('status-cards').innerHTML =
+        '<div class="card"><div class="card-label">Capital Atual</div><div class="card-value green">' + fmt(s.capitalAtual) + '</div></div>' +
+        '<div class="card"><div class="card-label">Resultado Acumulado</div><div class="card-value ' + (s.resultadoLiquido >= 0 ? 'green' : 'red') + '">' + fmt(s.resultadoLiquido) + '</div></div>' +
+        '<div class="card"><div class="card-label">% de Evolução</div><div class="card-value ' + (s.resultadoLiquido >= 0 ? 'green' : 'red') + '">' + fmtPct((s.capitalAtual - Number(params.capitalInicial)) / Number(params.capitalInicial)) + '</div></div>' +
+        '<div class="card"><div class="card-label">Progresso até a Meta</div><div class="card-value yellow">' + fmtPct(s.progresso) + '</div></div>' +
+        '<div class="card"><div class="card-label">Distância do Stop</div><div class="card-value ' + (distStop === 'Seguro' ? 'green' : 'red') + '">' + distStop + '</div></div>' +
+        '<div class="card"><div class="card-label">Drawdown Atual</div><div class="card-value ' + (s.drawdown < 0 ? 'red' : 'green') + '">' + fmtPct(s.drawdown) + '</div></div>';
+    }
+
+    function updateMgmtDetails() {
+      var box = document.getElementById('mgmtDetails');
+      var grid = document.getElementById('mgmtDetailsGrid');
+      var tipo = params.gerenciamento || 'moderado';
+
+      if (tipo === 'personalizado') {
+        box.style.display = 'block';
+        grid.innerHTML =
+          '<div class="form-group"><label>Risco por Trade (%)</label>' +
+          '<input type="number" id="riscoPersonalizado" value="' + (params.riscoPersonalizado || 2) + '" step="0.1" min="0.1" max="20" /></div>' +
+          '<div class="form-group"><label>Valor em R$ (calculado)</label>' +
+          '<input type="text" id="riscoPersonalizadoValor" readonly value="' + fmt((Number(params.capitalInicial)||10000) * (Number(params.riscoPersonalizado)||2) / 100) + '" /></div>';
+      } else if (tipo === 'compostos') {
+        box.style.display = 'block';
+        grid.innerHTML =
+          '<div class="form-group"><label>Risco por Trade (%)</label>' +
+          '<input type="number" id="riscoCompostos" value="' + (params.riscoCompostos || 1.5) + '" step="0.1" min="0.5" max="5" /></div>' +
+          '<div class="form-group"><label>Proteção de Capital (% máximo de perda total)</label>' +
+          '<input type="number" id="protecaoCompostos" value="' + (params.protecaoCompostos || 15) + '" step="1" min="5" max="30" /></div>' +
+          '<div class="form-group"><label>Valor arriscado por trade</label>' +
+          '<input type="text" readonly value="' + fmt((Number(params.capitalInicial)||10000) * (Number(params.riscoCompostos)||1.5) / 100) + '" /></div>';
+      } else {
+        box.style.display = 'none';
+        grid.innerHTML = '';
+      }
+    }
+
+    function renderTrades() {
+      var s = getStats();
+      document.getElementById('trades-resumo').innerHTML =
+        '<div class="card"><div class="card-label">Dias Operados</div><div class="card-value">' + s.diasOperados + '</div></div>' +
+        '<div class="card"><div class="card-label">Total Trades</div><div class="card-value">' + s.totalTrades + '</div></div>' +
+        '<div class="card"><div class="card-label">Win Rate</div><div class="card-value green">' + fmtPct(s.winRate) + '</div></div>' +
+        '<div class="card"><div class="card-label">Resultado Líquido</div><div class="card-value ' + (s.resultadoLiquido >= 0 ? 'green' : 'red') + '">' + fmt(s.resultadoLiquido) + '</div></div>' +
+        '<div class="card"><div class="card-label">Saldo Atual</div><div class="card-value green">' + fmt(s.capitalAtual) + '</div></div>';
+
+      var tbody = document.getElementById('trades-tbody');
+      if (!s.calc.length) {
+        tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="icon">☰</div>Nenhum trade registrado ainda</div></td></tr>';
+        return;
+      }
+      tbody.innerHTML = s.calc.map(function(t) {
+        return '<tr>' +
+          '<td>' + fmtDate(t.data) + '</td>' +
+          '<td>' + t.qtd + '</td>' +
+          '<td class="pos">' + fmt(t.ganhos || 0) + '</td>' +
+          '<td class="neg">' + fmt(t.perdas || 0) + '</td>' +
+          '<td class="' + (t.resultado >= 0 ? 'pos' : 'neg') + '">' + fmt(t.resultado) + '</td>' +
+          '<td>' + fmt(t.saldo) + '</td>' +
+          '<td class="' + (t.pct >= 0 ? 'pos' : 'neg') + '">' + fmtPct(t.pct) + '</td>' +
+          '<td><span class="status-badge ' + (t.resultado > 0 ? 'status-bom' : t.resultado < 0 ? 'status-ruim' : 'status-medio') + '">' + t.status + '</span></td>' +
+          '<td><button class="btn btn-danger" style="padding:4px 10px;font-size:11px;" data-del-data="' + t.data + '" data-del-g="' + t.ganhos + '" data-del-p="' + t.perdas + '">✕</button></td>' +
+          '</tr>';
+      }).join('');
+
+      // Bind delete buttons
+      tbody.querySelectorAll('[data-del-data]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          removerTrade(btn.getAttribute('data-del-data'), Number(btn.getAttribute('data-del-g')), Number(btn.getAttribute('data-del-p')));
+        });
+      });
+    }
+
+    function renderMensal() {
+      var mensal = getMensal();
+      document.getElementById('mensal-tbody').innerHTML = mensal.map(function(m) {
+        return '<tr>' +
+          '<td>' + m.nome + '</td>' +
+          '<td>' + (m.temDados ? m.qtd : '—') + '</td>' +
+          '<td class="pos">' + (m.temDados ? fmt(m.ganhos) : '—') + '</td>' +
+          '<td class="neg">' + (m.temDados ? fmt(m.perdas) : '—') + '</td>' +
+          '<td class="' + (m.resultado >= 0 ? 'pos' : 'neg') + '">' + (m.temDados ? fmt(m.resultado) : '—') + '</td>' +
+          '<td class="neg">' + (m.temDados ? fmt(m.pior) : '—') + '</td>' +
+          '<td>' + (m.temDados ? fmtPct(m.risco) : '—') + '</td>' +
+          '<td>' + (m.temDados ? fmt(m.saldo) : '—') + '</td>' +
+          '<td><span class="status-badge ' + (m.status === 'BOM' ? 'status-bom' : m.status === 'MÉDIO' ? 'status-medio' : m.status === 'RUIM' ? 'status-ruim' : 'status-none') + '">' + m.status + '</span></td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    function renderAnual() {
+      var anual = getAnual();
+      var s = getStats();
+      document.getElementById('anual-resumo').innerHTML =
+        '<div class="card"><div class="card-label">Anos Registrados</div><div class="card-value">' + (anual.length || 0) + '</div></div>' +
+        '<div class="card"><div class="card-label">Resultado Total</div><div class="card-value ' + (s.resultadoLiquido >= 0 ? 'green' : 'red') + '">' + fmt(s.resultadoLiquido) + '</div></div>' +
+        '<div class="card"><div class="card-label">Win Rate Geral</div><div class="card-value green">' + fmtPct(s.winRate) + '</div></div>' +
+        '<div class="card"><div class="card-label">Capital Atual</div><div class="card-value green">' + fmt(s.capitalAtual) + '</div></div>';
+
+      var tbody = document.getElementById('anual-tbody');
+      if (!anual.length) {
+        tbody.innerHTML = '<tr><td colspan="11"><div class="empty-state"><div class="icon">📆</div>Nenhum dado anual ainda</div></td></tr>';
+        return;
+      }
+      tbody.innerHTML = anual.map(function(a) {
+        return '<tr>' +
+          '<td><strong>' + a.ano + '</strong></td>' +
+          '<td>' + a.qtd + '</td><td>' + a.dias + '</td>' +
+          '<td class="pos">' + fmt(a.ganhos) + '</td>' +
+          '<td class="neg">' + fmt(a.perdas) + '</td>' +
+          '<td class="' + (a.resultado >= 0 ? 'pos' : 'neg') + '">' + fmt(a.resultado) + '</td>' +
+          '<td>' + fmtPct(a.winRate) + '</td>' +
+          '<td class="pos">' + fmt(a.melhorMes) + '</td>' +
+          '<td class="neg">' + fmt(a.piorMes) + '</td>' +
+          '<td>' + fmt(a.saldo) + '</td>' +
+          '<td><span class="status-badge ' + (a.status === 'BOM' ? 'status-bom' : a.status === 'MÉDIO' ? 'status-medio' : 'status-ruim') + '">' + a.status + '</span></td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    function renderConta() {
+      if (!currentUser) return;
+      document.getElementById('conta-info').innerHTML =
+        '<div class="card"><div class="card-label">Nome</div><div class="card-value" style="font-size:16px;">' + (currentUser.nome || '') + '</div></div>' +
+        '<div class="card"><div class="card-label">E-mail / Telefone</div><div class="card-value" style="font-size:16px;">' + (currentUser.login || '') + '</div></div>' +
+        '<div class="card"><div class="card-label">Conta criada em</div><div class="card-value" style="font-size:14px;">' + (currentUser.criado ? new Date(currentUser.criado).toLocaleDateString('pt-BR') : '—') + '</div></div>';
+    }
+
+    function renderGraficos() {
+      var s = getStats();
+      var mensal = getMensal().filter(function(m){ return m.temDados; });
+      try {
+        renderChart('chartAcerto', 'doughnut', ['Dias de Lucro', 'Dias de Prejuízo', 'Dias Zerados'], [{
+          data: [s.diasLucro, s.diasPrejuizo, s.diasZero],
+          backgroundColor: ['#00ff88', '#ff4444', '#555555'], borderWidth: 0
+        }], true);
+        renderChart('chartGanhosPerdas', 'doughnut', ['Total Ganhos', 'Total Perdas'], [{
+          data: [s.totalGanhos, s.totalPerdas],
+          backgroundColor: ['#00ff88', '#ff4444'], borderWidth: 0
+        }], true);
+        renderChart('chartMensal', 'bar', mensal.map(function(m){ return m.nome.substring(0,3); }), [{
+          label: 'Resultado', data: mensal.map(function(m){ return m.resultado; }),
+          backgroundColor: mensal.map(function(m){ return m.resultado >= 0 ? 'rgba(0,255,136,0.7)' : 'rgba(255,68,68,0.7)'; }),
+          borderRadius: 4
+        }]);
+        renderChart('chartEvolucao', 'line', s.calc.map(function(t){ return fmtDate(t.data); }), [{
+          label: 'Saldo', data: s.calc.map(function(t){ return t.saldo; }),
+          borderColor: '#00ff88', backgroundColor: 'rgba(0,255,136,0.08)',
+          fill: true, tension: 0.3, pointRadius: 3, pointBackgroundColor: '#00ff88'
+        }]);
+      } catch(e) { console.warn('Charts error', e); }
+    }
+
+    function renderChart(id, type, labels, datasets, isPie) {
+      var canvas = document.getElementById(id);
+      if (!canvas || typeof Chart === 'undefined') return;
+      if (charts[id]) { try { charts[id].destroy(); } catch(e){} }
+      charts[id] = new Chart(canvas, {
+        type: type,
+        data: { labels: labels, datasets: datasets },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: !!isPie || type === 'doughnut', labels: { color: '#888', font: { size: 11 } } } },
+          scales: (isPie || type === 'doughnut') ? {} : {
+            x: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+            y: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } }
+          }
+        }
+      });
+    }
+
+    function renderAll() {
+      try {
+        renderDashboard();
+        renderParametros();
+        renderTrades();
+        renderMensal();
+        renderAnual();
+        renderGraficos();
+        renderConta();
+      } catch(e) {
+        console.error('Erro no renderAll', e);
+      }
+    }
+
+    // ========== ACTIONS ==========
+    function salvarParametros() {
+      params.capitalInicial = parseFloat(document.getElementById('capInicial').value) || 10000;
+      params.metaLucro = parseFloat(document.getElementById('metaLucro').value) || 20;
+      params.metaDiaria = parseFloat(document.getElementById('metaDiaria').value) || 1;
+      params.stopDiario = parseFloat(document.getElementById('stopDiario').value) || 2;
+      params.stopTotal = parseFloat(document.getElementById('stopTotal').value) || 10;
+
+      var rp = document.getElementById('riscoPersonalizado');
+      if (rp) params.riscoPersonalizado = parseFloat(rp.value) || 2;
+      var rc = document.getElementById('riscoCompostos');
+      if (rc) params.riscoCompostos = parseFloat(rc.value) || 1.5;
+      var pc = document.getElementById('protecaoCompostos');
+      if (pc) params.protecaoCompostos = parseFloat(pc.value) || 15;
+
+      saveUserData();
+      renderAll();
+      showToast('Parâmetros salvos!');
+    }
+
+    function abrirModalTrade() {
+      document.getElementById('tradeData').value = new Date().toISOString().split('T')[0];
+      document.getElementById('tradeQtd').value = 1;
+      document.getElementById('tradeGanhos').value = 0;
+      document.getElementById('tradePerdas').value = 0;
+      document.getElementById('modalTrade').classList.add('show');
+    }
+    function fecharModalTrade() {
+      document.getElementById('modalTrade').classList.remove('show');
+    }
+    function adicionarTrade() {
+      var data = document.getElementById('tradeData').value;
+      var qtd = parseInt(document.getElementById('tradeQtd').value, 10) || 1;
+      var ganhos = parseFloat(document.getElementById('tradeGanhos').value) || 0;
+      var perdas = parseFloat(document.getElementById('tradePerdas').value) || 0;
+      if (!data) return showToast('Informe a data!');
+      trades.push({ data: data, qtd: qtd, ganhos: ganhos, perdas: perdas });
+      saveUserData();
+      fecharModalTrade();
+      renderAll();
+      showToast('Trade registrado!');
+    }
+    function removerTrade(data, ganhos, perdas) {
+      var idx = -1;
+      for (var i = 0; i < trades.length; i++) {
+        if (trades[i].data === data && Number(trades[i].ganhos) === Number(ganhos) && Number(trades[i].perdas) === Number(perdas)) {
+          idx = i; break;
+        }
+      }
+      if (idx >= 0) trades.splice(idx, 1);
+      saveUserData();
+      renderAll();
+      showToast('Trade removido');
+    }
+
+    function showToast(msg) {
+      var t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(function(){ t.classList.remove('show'); }, 2500);
+    }
+
+    // ========== EVENT BINDING ==========
+    function bindEvents() {
+      // Auth tabs
+      document.getElementById('tabLogin').addEventListener('click', function(){ switchAuthTab('login'); });
+      document.getElementById('tabRegister').addEventListener('click', function(){ switchAuthTab('register'); });
+      document.getElementById('btnLogin').addEventListener('click', fazerLogin);
+      document.getElementById('btnRegister').addEventListener('click', criarConta);
+
+      // Enter key on login
+      document.getElementById('loginPass').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') fazerLogin();
+      });
+      document.getElementById('regPass2').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') criarConta();
+      });
+
+      // Logout
+      document.getElementById('btnLogout').addEventListener('click', logout);
+
+      // Navigation
+      document.querySelectorAll('.nav-item').forEach(function(item) {
+        item.addEventListener('click', function() {
+          document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
+          document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+          item.classList.add('active');
+          var page = item.getAttribute('data-page');
+          document.getElementById('page-' + page).classList.add('active');
+          if (page === 'dashboard' || page === 'graficos') {
+            setTimeout(function() {
+              if (page === 'dashboard') renderDashboard();
+              else renderGraficos();
+            }, 60);
+          }
+        });
+      });
+
+      // Params
+      document.getElementById('btnSalvarParams').addEventListener('click', salvarParametros);
+
+      // Gerenciamento cards
+      document.querySelectorAll('.mgmt-card').forEach(function(card) {
+        card.addEventListener('click', function() {
+          var tipo = card.getAttribute('data-mgmt');
+          params.gerenciamento = tipo;
+          document.querySelectorAll('.mgmt-card').forEach(function(c){ c.classList.remove('selected'); });
+          card.classList.add('selected');
+          updateMgmtDetails();
+        });
+      });
+
+      // Trades
+      document.getElementById('btnNovoTrade').addEventListener('click', abrirModalTrade);
+      document.getElementById('btnCancelTrade').addEventListener('click', fecharModalTrade);
+      document.getElementById('btnSaveTrade').addEventListener('click', adicionarTrade);
+
+      // Conta
+      document.getElementById('btnAlterarSenha').addEventListener('click', alterarSenha);
+    }
+
+    // ========== INIT ==========
+    function init() {
+      bindEvents();
+      try {
+        var session = localStorage.getItem('cdtrade_session');
+        if (session) {
+          var users = getUsers();
+          if (users[session]) {
+            currentUser = users[session];
+            entrarNoApp();
+            return;
+          }
+        }
+      } catch(e) {
+        console.error('Erro na sessão', e);
+      }
+      // Mostra tela de auth (já está visível por padrão)
+    }
+
+    // Start when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  })();
+  </script>
+</body>
+</html>
